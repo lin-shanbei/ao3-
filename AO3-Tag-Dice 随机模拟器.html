@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AO3 Tag Dice 🎲</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1a1a2e;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            padding: 20px;
+        }
+
+        .container {
+            background: #16213e;
+            border-radius: 20px;
+            padding: 32px 28px;
+            width: 100%;
+            max-width: 600px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            border: 1px solid #0f3460;
+        }
+
+        h1 {
+            color: #e94560;
+            font-size: 28px;
+            font-weight: 700;
+            text-align: center;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            color: #8899aa;
+            text-align: center;
+            font-size: 13px;
+            margin-bottom: 28px;
+            border-bottom: 1px solid #0f3460;
+            padding-bottom: 16px;
+        }
+
+        /* PRESET 切换 */
+        .preset-bar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .preset-btn {
+            background: #1a1a3e;
+            border: 1px solid #2a2a5e;
+            color: #aab;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .preset-btn:hover {
+            background: #2a2a5e;
+            color: #fff;
+        }
+
+        .preset-btn.active {
+            background: #e94560;
+            border-color: #e94560;
+            color: #fff;
+        }
+
+        /* 结果卡片 */
+        .card {
+            background: #0f3460;
+            border-radius: 16px;
+            padding: 24px 20px;
+            min-height: 280px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin-bottom: 20px;
+            border: 1px solid #1a4a7a;
+            transition: opacity 0.2s;
+        }
+
+        .tag-row {
+            display: flex;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 4px 8px;
+        }
+
+        .tag-label {
+            color: #6688aa;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 56px;
+        }
+
+        .tag-value {
+            color: #f0f4f8;
+            font-size: 15px;
+            line-height: 1.5;
+            word-break: break-word;
+        }
+
+        .tag-value.highlight {
+            color: #ffd700;
+        }
+
+        .tag-value.intense {
+            color: #ff6b6b;
+        }
+
+        .empty-placeholder {
+            color: #445566;
+            font-style: italic;
+            font-size: 14px;
+        }
+
+        /* 按钮区 */
+        .actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            flex: 1;
+            min-width: 100px;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-roll {
+            background: #e94560;
+            color: #fff;
+        }
+
+        .btn-roll:hover {
+            background: #d63850;
+            transform: translateY(-1px);
+        }
+
+        .btn-copy {
+            background: #1a4a7a;
+            color: #ccd;
+        }
+
+        .btn-copy:hover {
+            background: #2a5a8a;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2a3a5a;
+            color: #dde;
+            padding: 10px 24px;
+            border-radius: 30px;
+            font-size: 14px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        /* JSON 编辑器入口（折叠） */
+        .json-section {
+            margin-top: 24px;
+            border-top: 1px solid #0f3460;
+            padding-top: 14px;
+        }
+
+        .json-toggle {
+            background: none;
+            border: none;
+            color: #556677;
+            font-size: 12px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .json-toggle:hover {
+            background: #1a1a3e;
+            color: #aab;
+        }
+
+        .json-box {
+            display: none;
+            margin-top: 10px;
+        }
+
+        .json-box.open {
+            display: block;
+        }
+
+        .json-box textarea {
+            width: 100%;
+            height: 320px;
+            background: #0d1117;
+            color: #c9d1d9;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 14px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            resize: vertical;
+            tab-size: 2;
+        }
+
+        .json-box textarea:focus {
+            outline: none;
+            border-color: #e94560;
+        }
+
+        .json-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .json-actions .btn {
+            flex: 0 1 auto;
+            padding: 6px 16px;
+            font-size: 12px;
+            min-width: auto;
+        }
+
+        .btn-apply {
+            background: #238636;
+            color: #fff;
+        }
+
+        .btn-apply:hover {
+            background: #2ea043;
+        }
+
+        .btn-reset-json {
+            background: #30363d;
+            color: #ccc;
+        }
+
+        .btn-reset-json:hover {
+            background: #3d444d;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px 16px;
+            }
+            .tag-value {
+                font-size: 14px;
+            }
+            .btn {
+                font-size: 14px;
+                padding: 10px 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🎲 Tag Dice</h1>
+        <div class="subtitle">AO3 随机标签生成器</div>
+
+        <!-- Preset 模式 -->
+        <div class="preset-bar" id="presetBar"></div>
+
+        <!-- 结果卡片 -->
+        <div class="card" id="resultCard">
+            <div class="tag-row">
+                <span class="tag-label">场景</span>
+                <span class="tag-value empty-placeholder">点击 Roll 生成</span>
+            </div>
+            <div class="tag-row">
+                <span class="tag-label">情绪</span>
+                <span class="tag-value empty-placeholder">点击 Roll 生成</span>
+            </div>
+            <div class="tag-row">
+                <span class="tag-label">关系</span>
+                <span class="tag-value empty-placeholder">点击 Roll 生成</span>
+            </div>
+            <div class="tag-row">
+                <span class="tag-label">动作</span>
+                <span class="tag-value empty-placeholder">点击 Roll 生成</span>
+            </div>
+            <div class="tag-row">
+                <span class="tag-label">限制</span>
+                <span class="tag-value empty-placeholder">点击 Roll 生成</span>
+            </div>
+            <div class="tag-row">
+                <span class="tag-label">强度</span>
+                <span class="tag-value empty-placeholder">点击 Roll 生成</span>
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="actions">
+            <button class="btn btn-roll" id="rollBtn">🎲 Roll</button>
+            <button class="btn btn-copy" id="copyBtn">📋 复制</button>
+        </div>
+
+        <!-- JSON 编辑器（可折叠） -->
+        <div class="json-section">
+            <button class="json-toggle" id="jsonToggle">⚙️ 编辑标签池 (JSON)</button>
+            <div class="json-box" id="jsonBox">
+                <textarea id="jsonEditor" spellcheck="false"></textarea>
+                <div class="json-actions">
+                    <button class="btn btn-apply" id="applyJsonBtn">✅ 应用</button>
+                    <button class="btn btn-reset-json" id="resetJsonBtn">↩️ 恢复默认</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ============================================================
+        //  1. D E F A U L T   T A G   P O O L   (JSON)
+        //  你只需修改这个 JSON 对象即可扩展标签
+        // ============================================================
+        const DEFAULT_TAG_POOL = {
+            "场景": [
+                "废弃医院 深夜病房",
+                "雨夜便利店 最后一支烟",
+                "雪山木屋 壁炉旁",
+                "空无一人的地铁末班车",
+                "地下停车场 声控灯忽明忽灭",
+                "楼顶天台 围栏边缘",
+                "潮湿的出租屋 凌晨三点",
+                "废弃教堂 彩色玻璃下",
+                "深夜图书馆 书架深处",
+                "浴室 镜子起雾",
+                "电梯故障 密闭空间",
+                "露天温泉 雪夜",
+                "实验室 无菌白炽灯",
+                "废墟中的咖啡馆",
+                "午夜电影院 最后一场"
+            ],
+            "情绪": [
+                "压抑到窒息的沉默",
+                "濒临崩溃的冷静",
+                "绝望中抓住最后一根稻草",
+                "冰冷愤怒",
+                "病态依恋",
+                "自毁倾向",
+                "麻木中的刺痛",
+                "隐秘的渴望",
+                "愧疚与渴望交织",
+                "孤独成瘾",
+                "歇斯底里的平静",
+                "温柔的残忍"
+            ],
+            "关系张力": [
+                "一方完全掌控",
+                "权力不对等 救赎与毁灭之间",
+                "针锋相对 谁也不肯让步",
+                "若即若离 推拉游戏",
+                "一方沉溺 一方清醒",
+                "互相折磨 无法放手",
+                "崇拜与践踏并存",
+                "保护欲与占有欲的边界模糊",
+                "交易关系 动了真心",
+                "敌对阵营 秘密往来"
+            ],
+            "动作": [
+                "十指相扣 按在床上",
+                "咬住下唇 压抑声音",
+                "从背后环抱 手掌贴紧小腹",
+                "领带缠绕手腕",
+                "膝盖顶开双腿",
+                "脖颈间的啃咬与舔舐",
+                "指尖划过脊背 留下红痕",
+                "扣住下巴 强迫对视",
+                "腰被掐出淤青",
+                "手腕被举过头顶",
+                "坐在对方腿上 被托着腰",
+                "镜子前 从身后进入",
+                "浴缸里 水花四溅",
+                "贴着墙壁 无法动弹"
+            ],
+            "限制条件": [
+                "不能发出声音",
+                "被绑住双手",
+                "蒙眼",
+                "时限 天亮之前必须结束",
+                "不准射精/高潮",
+                "只能使用某个部位",
+                "全程对视 不准移开视线",
+                "穿着全部衣物",
+                "公共场所 随时可能被发现",
+                "一方生病/受伤未愈",
+                "未痊愈的伤疤被触碰",
+                "第三者在隔壁房间"
+            ],
+            "强度": [
+                "柔和但不容拒绝",
+                "逐渐失控 越来越用力",
+                "刻意放慢 折磨般的节奏",
+                "激烈到几乎暴力",
+                "颤抖着忍耐",
+                "狂风骤雨 不留喘息",
+                "温柔到让人想哭",
+                "近乎虔诚的缓慢",
+                "凶狠中带着克制"
+            ]
+        };
+
+        // Preset 定义（可扩展）
+        const PRESETS = {
+            "默认": {
+                "场景": true,
+                "情绪": true,
+                "关系张力": true,
+                "动作": true,
+                "限制条件": true,
+                "强度": true
+            },
+            "💔 虐向": {
+                "场景": true,
+                "情绪": true,
+                "关系张力": true,
+                "动作": true,
+                "限制条件": true,
+                "强度": false
+            },
+            "🔥 纯肉": {
+                "场景": false,
+                "情绪": false,
+                "关系张力": false,
+                "动作": true,
+                "限制条件": true,
+                "强度": true
+            },
+            "🌧️ 氛围": {
+                "场景": true,
+                "情绪": true,
+                "关系张力": true,
+                "动作": false,
+                "限制条件": false,
+                "强度": false
+            }
+        };
+
+        // ============================================================
+        //  2. S T A T E
+        // ============================================================
+        let currentPool = JSON.parse(JSON.stringify(DEFAULT_TAG_POOL));
+        let currentPreset = "默认";
+        let currentResult = {};      // { 维度名: 选中标签 }
+        let activeDimensions = {};   // 当前 preset 激活的维度
+
+        // DOM 引用
+        const card = document.getElementById('resultCard');
+        const rollBtn = document.getElementById('rollBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const presetBar = document.getElementById('presetBar');
+        const toast = document.getElementById('toast');
+        const jsonEditor = document.getElementById('jsonEditor');
+        const jsonToggle = document.getElementById('jsonToggle');
+        const jsonBox = document.getElementById('jsonBox');
+        const applyJsonBtn = document.getElementById('applyJsonBtn');
+        const resetJsonBtn = document.getElementById('resetJsonBtn');
+
+        // ============================================================
+        //  3. H E L P E R S
+        // ============================================================
+        function randomItem(arr) {
+            return arr[Math.floor(Math.random() * arr.length)];
+        }
+
+        function pick(arr) {
+            if (!arr || arr.length === 0) return null;
+            return randomItem(arr);
+        }
+
+        // 获取当前激活的维度列表（按 preset 过滤）
+        function getActiveDimKeys() {
+            const preset = PRESETS[currentPreset];
+            if (!preset) return Object.keys(currentPool);
+            return Object.keys(currentPool).filter(dim => preset[dim] === true);
+        }
+
+        // 掷骰子
+        function roll() {
+            const dims = getActiveDimKeys();
+            if (dims.length === 0) {
+                showToast("当前预设没有激活任何维度 ⚠️");
+                return;
+            }
+
+            const result = {};
+            for (const dim of dims) {
+                const tags = currentPool[dim];
+                if (tags && tags.length > 0) {
+                    result[dim] = randomItem(tags);
+                } else {
+                    result[dim] = null;
+                }
+            }
+            currentResult = result;
+            renderCard(result);
+        }
+
+        // 渲染卡片
+        function renderCard(result) {
+            // 清空，保留所有行骨架
+            const rows = card.querySelectorAll('.tag-row');
+            const allDims = Object.keys(currentPool);
+
+            // 先全部隐藏
+            rows.forEach(row => row.style.display = 'none');
+
+            let idx = 0;
+            for (const dim of allDims) {
+                if (idx >= rows.length) break;
+                const row = rows[idx];
+                const labelEl = row.querySelector('.tag-label');
+                const valueEl = row.querySelector('.tag-value');
+
+                labelEl.textContent = dim;
+                const val = result[dim];
+                if (val !== undefined && val !== null) {
+                    valueEl.textContent = val;
+                    valueEl.className = 'tag-value';
+                    // 强度维度特殊高亮
+                    if (dim === '强度') valueEl.classList.add('highlight');
+                } else {
+                    valueEl.textContent = '—';
+                    valueEl.className = 'tag-value empty-placeholder';
+                }
+
+                row.style.display = 'flex';
+                idx++;
+            }
+
+            // 多余行隐藏
+            for (let i = idx; i < rows.length; i++) {
+                rows[i].style.display = 'none';
+            }
+        }
+
+        // 复制结果
+        function copyResult() {
+            const dims = Object.keys(currentResult);
+            if (dims.length === 0) {
+                showToast("还没有结果，先 Roll 一下吧 🎲");
+                return;
+            }
+            const lines = dims.map(dim => {
+                const val = currentResult[dim];
+                if (val === undefined || val === null) return null;
+                return `${dim}：${val}`;
+            }).filter(Boolean);
+
+            if (lines.length === 0) {
+                showToast("没有可复制的内容");
+                return;
+            }
+
+            // 按激活维度排序
+            const activeDims = getActiveDimKeys();
+            const sorted = activeDims
+                .filter(d => currentResult[d] !== undefined && currentResult[d] !== null)
+                .map(d => `${d}：${currentResult[d]}`);
+
+            const text = sorted.join('\n');
+            navigator.clipboard.writeText(text).then(() => {
+                showToast("✅ 已复制到剪贴板");
+            }).catch(() => {
+                // fallback
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                ta.remove();
+                showToast("✅ 已复制到剪贴板");
+            });
+        }
+
+        // Toast
+        function showToast(msg) {
+            toast.textContent = msg;
+            toast.classList.add('show');
+            clearTimeout(toast._timer);
+            toast._timer = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+
+        // 构建 Preset 按钮
+        function buildPresets() {
+            presetBar.innerHTML = '';
+            for (const [name, dims] of Object.entries(PRESETS)) {
+                const btn = document.createElement('button');
+                btn.className = 'preset-btn' + (name === currentPreset ? ' active' : '');
+                btn.textContent = name;
+                btn.dataset.preset = name;
+                btn.addEventListener('click', () => {
+                    setPreset(name);
+                });
+                presetBar.appendChild(btn);
+            }
+            // 更新 activeDimensions
+            applyPreset(currentPreset);
+        }
+
+        function setPreset(name) {
+            currentPreset = name;
+            // 更新 UI
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.preset === name);
+            });
+            applyPreset(name);
+            // 自动 roll
+            roll();
+        }
+
+        function applyPreset(name) {
+            const preset = PRESETS[name];
+            if (!preset) {
+                activeDimensions = {};
+                for (const dim of Object.keys(currentPool)) {
+                    activeDimensions[dim] = true;
+                }
+                return;
+            }
+            activeDimensions = {};
+            for (const dim of Object.keys(currentPool)) {
+                activeDimensions[dim] = preset[dim] === true;
+            }
+        }
+
+        // 刷新 JSON 编辑器内容
+        function updateJsonEditor() {
+            jsonEditor.value = JSON.stringify(currentPool, null, 2);
+        }
+
+        // 应用 JSON（带校验）
+        function applyJson() {
+            try {
+                const parsed = JSON.parse(jsonEditor.value);
+                // 简单校验：必须是对象，每个值是数组
+                if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+                    showToast("❌ JSON 格式错误：需要一个对象");
+                    return;
+                }
+                for (const [key, val] of Object.entries(parsed)) {
+                    if (!Array.isArray(val) || val.length === 0) {
+                        showToast(`❌ 维度 "${key}" 必须是非空数组`);
+                        return;
+                    }
+                    // 确保每个元素是字符串
+                    for (let i = 0; i < val.length; i++) {
+                        if (typeof val[i] !== 'string') {
+                            showToast(`❌ 维度 "${key}" 的第 ${i+1} 项必须是字符串`);
+                            return;
+                        }
+                    }
+                }
+                currentPool = parsed;
+                // 重新构建预设的维度映射（保留激活状态）
+                applyPreset(currentPreset);
+                // 重新 roll
+                roll();
+                showToast("✅ 标签池已更新");
+            } catch (e) {
+                showToast("❌ JSON 解析失败: " + e.message);
+            }
+        }
+
+        // 恢复默认 JSON
+        function resetJson() {
+            currentPool = JSON.parse(JSON.stringify(DEFAULT_TAG_POOL));
+            updateJsonEditor();
+            applyPreset(currentPreset);
+            roll();
+            showToast("↩️ 已恢复默认标签池");
+        }
+
+        // ============================================================
+        //  4. I N I T
+        // ============================================================
+        function init() {
+            buildPresets();
+            updateJsonEditor();
+            roll();  // 首次自动 roll
+
+            // 事件绑定
+            rollBtn.addEventListener('click', roll);
+            copyBtn.addEventListener('click', copyResult);
+
+            // JSON 折叠
+            jsonToggle.addEventListener('click', () => {
+                jsonBox.classList.toggle('open');
+                jsonToggle.textContent = jsonBox.classList.contains('open') ?
+                    '🔼 收起编辑' :
+                    '⚙️ 编辑标签池 (JSON)';
+            });
+
+            applyJsonBtn.addEventListener('click', applyJson);
+            resetJsonBtn.addEventListener('click', resetJson);
+
+            // 快捷键：R 重新 roll（不与其他输入框冲突）
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'r' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                    const active = document.activeElement;
+                    if (active && (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT')) return;
+                    e.preventDefault();
+                    roll();
+                }
+            });
+        }
+
+        // DOM Ready
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+
+</body>
+</html>
